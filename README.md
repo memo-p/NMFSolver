@@ -28,12 +28,14 @@ Note that the dimensions of *W* and *H* must be already defined and guide the so
 
 The other arguments are the following:
 
-    gradient_method: 0 for KL multiplicative update, 1 for L1 additive, 2 for L2 additive (Default 0)
+    gradient_method: 0 for KL multiplicative update, 2 for L2 additive, 21 for L2 without coordinate descent W/H (Default 0)
     init_method: 0 initialize W with random columns of A, 1 initialize W with random values [0,1], both initialize H with random values [0,1] (Default 1)
     sparsity_coefficient: Sparsity coefficient for the gradient update (Default 0.001)
     time_out_in_second: Stop criteria in seconds (Default 3)
     number_of_iteration_step: Stop criteria in number of iterations (Default 200)
     convergence_stop: Stop criteria of convergence (Default 1e-6)
+    W_fix: If true, the algorithm does not modify W (Default false)
+    H_fix: If true, the algorithm does not modify H (Default false)
     verbose: If true, print the current cost at each iteration (Default false)
 
 To run the solver, call the method solve

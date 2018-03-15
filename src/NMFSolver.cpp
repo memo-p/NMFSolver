@@ -244,7 +244,7 @@ double NMFSolver::lossFunctionL1(){
 
 double NMFSolver::lossFunctionL21(){
     mat AmR = A-R;
-    AmR.transform([](double val) { return (val < 0)? val*val : val; } );
+    AmR.transform([](double val) { return (val < 0)? val*val : abs(val); } );
     return norm(AmR,1);
 }
 
