@@ -34,10 +34,24 @@ int main(int argc, char **argv){
    	mat X;
    	X.load("data.csv");
    	mat A = X.t();
-   	mat W(1060,4);
-   	mat H(4,30);
-   	NMFSolver s(A,W,H);
+   	mat W(A.n_rows,4);
+   	mat H(4,A.n_cols);
+   	NMFSolver s(A,W,H,
+   		0,		// KL loss
+    	1, 		// Random values
+    	0.001,  // Sparsity coefficient
+    	2,		// Time out
+    	200,	// Number of iteration
+    	1e-6,	// Convergence rate
+    	false,	// W fiw
+   		false,	// H fix
+    	false);	// Verbose
    	s.solve();
+   	W.save("W.csv",csv_ascii);
+   	H.save("H.csv",csv_ascii);
+   	printf("Final cost    : %e   \n", s.final_loss);
+   	printf("Solving time  : %d ms\n", s.chrono.ellapsed_m_second());
+   	printf("#iterations   : %d   \n", s.iter_solving);
 
     return 0;
 }

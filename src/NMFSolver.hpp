@@ -42,6 +42,8 @@ public:
     int time_out_in_second = 3,
     int number_of_iteration_step = 200,
     double convergence_stop = 1e-6,
+    bool W_fix = false,
+    bool H_fix = false,
     bool verbose = false
     );
 
@@ -85,6 +87,8 @@ public:
 	int number_of_iteration_step;
 	int init_method;
 	int gradient_method;
+	bool W_fix;
+    bool H_fix;
 	bool verbose;
 
     double final_loss;
@@ -95,6 +99,8 @@ public:
 	double alpha; 	// gradient step
 	double beta; 	// gradient step modifier
     double last_cost;
+    int iter_solving;
+    ChronoP chrono;
 
 	// Data for printing for W differences(To remove)
 	mat W_init; 	// initialized in solve().

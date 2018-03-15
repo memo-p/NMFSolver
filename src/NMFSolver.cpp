@@ -26,6 +26,8 @@ NMFSolver::NMFSolver(mat &A, mat &W, mat &H,
     int time_out_in_second,
     int number_of_iteration_step,
     double convergence_stop ,
+    bool W_fix,
+    bool H_fix,
     bool verbose
     ):
     A(A),  // A = Q * N matrix
@@ -39,6 +41,8 @@ NMFSolver::NMFSolver(mat &A, mat &W, mat &H,
     alpha(0.0001),
     beta(0.1),
     init_method(init_method),
+    W_fix(W_fix),
+    H_fix(H_fix),
     verbose(verbose),
     convergence_stop(convergence_stop),
     gradient_method(gradient_method),
@@ -46,22 +50,20 @@ NMFSolver::NMFSolver(mat &A, mat &W, mat &H,
     number_of_iteration_step(number_of_iteration_step)
     {
         srand(time(0));
-
     }
 
 
 void NMFSolver::solve(){
-    init_time = time(NULL);
-    ChronoP chrono;
-    
     // normalizeA();
 
     switch(init_method){
-        case 0:
+        case 0:                 // Choose random point from data set
             init_from_data();
             break;
-        case 1:
+        case 1:                 // Random values from range [0,1]
             init_from_random();
+            break;
+        case 2:                 // Do not initialise (From user)
             break;
         default:
             init_from_random();
@@ -81,7 +83,7 @@ void NMFSolver::solve(){
     if (verbose){   printf("%f \t cost\n",current_cost); }
     
 
-    for (int iter = 0; iter < number_of_iteration_step; ++iter) {
+    for (iter_solving = 0; iter_solving < number_of_iteration_step; ++iter_solving) {
 
         if(gradient_method == 0) {       gradientUpdate();}
         else if(gradient_method ==1){    gradientUpdateL1();}
@@ -111,32 +113,35 @@ void NMFSolver::solve(){
 
 void NMFSolver::gradientUpdate(){
 	normalizeW();
-    reconstruction();
-    // update H
     mat O = ones<mat>(Q, N); // an all-1 matrix
-    mat Aux1 = A / (R + epsilon);
-    H = H % ((W.t() * Aux1)/(W.t() * O + sparsity_coefficient));
+    if (!H_fix){             // update H
+        // reconstruction();
+        mat Aux1 = A / (R + epsilon);
+        H = H % ((W.t() * Aux1)/(W.t() * O + sparsity_coefficient));
+    }
+    
 
-	// update W
-	reconstruction();
-    if (sparsity_coefficient <= epsilon){
-        Aux1 = A / (R + epsilon); 
-        W = W % ((Aux1 * H.t())/(O * H.t()));
-    }else{
-        Aux1 = A / (R + epsilon); 
-        mat Wxp = Aux1 * H.t();     // (A/R) * H
-        mat Wyp = O * H.t();        // 11^t * H
-        rowvec h(K);
-        // numerator
-        h = ones<mat>(1,Q) * (Wyp % W);     //h[k] = sum of colmun of (11^t * H) % W
-        mat T1 = ones<mat>(Q, K);
-        mat W_x = Wxp + (T1.each_row() % h) % W;
-        // denominator
-        h = ones<mat>(1,Q) * (Wxp % W);     //h[k] = sum of colmun of ((A/R) * H) % W
-        mat T2 = ones<mat>(Q, K);
-        mat W_y =  Wyp + (T2.each_row() % h) % W;
-        mat GradW = W_x / (W_y + epsilon);
-        W = W % GradW;
+	if(!W_fix){                     // update W
+    	reconstruction();
+        if (sparsity_coefficient <= epsilon){
+            mat Aux1 = A / (R + epsilon); 
+            W = W % ((Aux1 * H.t())/(O * H.t()));
+        }else{
+            mat Aux1 = A / (R + epsilon); 
+            mat Wxp = Aux1 * H.t();     // (A/R) * H
+            mat Wyp = O * H.t();        // 11^t * H
+            rowvec h(K);
+            // numerator
+            h = ones<mat>(1,Q) * (Wyp % W);     //h[k] = sum of colmun of (11^t * H) % W
+            mat T1 = ones<mat>(Q, K);
+            mat W_x = Wxp + (T1.each_row() % h) % W;
+            // denominator
+            h = ones<mat>(1,Q) * (Wxp % W);     //h[k] = sum of colmun of ((A/R) * H) % W
+            mat T2 = ones<mat>(Q, K);
+            mat W_y =  Wyp + (T2.each_row() % h) % W;
+            mat GradW = W_x / (W_y + epsilon);
+            W = W % GradW;
+        }
     }
     
 }
@@ -196,14 +201,19 @@ double NMFSolver::lossFunction(){
 
 
 void NMFSolver::init_from_random(){
-    for (int k = 0; k < K; ++k){
-        for (int q = 0; q < Q; ++q){
-            W(q,k) = (static_cast <float> (rand()) / static_cast <float> (RAND_MAX)) + epsilon;
+    if (!W_fix){
+        for (int k = 0; k < K; ++k){
+            for (int q = 0; q < Q; ++q){
+                W(q,k) = (static_cast <float> (rand()) / static_cast <float> (RAND_MAX)) + epsilon;
+            }
         }
     }
-    for (int k = 0; k < K; ++k){
-        for (int m = 0; m < N; ++m){
-            H(k,m) = static_cast <float> (rand()) / static_cast <float> (RAND_MAX) + epsilon;
+    
+    if (!H_fix){
+        for (int k = 0; k < K; ++k){
+            for (int m = 0; m < N; ++m){
+                H(k,m) = static_cast <float> (rand()) / static_cast <float> (RAND_MAX) + epsilon;
+            }
         }
     }
     
@@ -214,14 +224,19 @@ void NMFSolver::init_from_data(){
     std::vector<int> sampleIDs;
     for (int i=0; i<N; ++i){ sampleIDs.push_back(i); }
     std::random_shuffle ( sampleIDs.begin(), sampleIDs.end() ); 
-    for (int k = 0; k < K; ++k){
-        for (int q = 0; q < Q; ++q){
-            W(q,k) = A(q, sampleIDs[k]);
+    if (!W_fix){
+        for (int k = 0; k < K; ++k){
+            for (int q = 0; q < Q; ++q){
+                W(q,k) = A(q, sampleIDs[k]);
+            }
         }
     }
-    for (int k = 0; k < K; ++k){
-        for (int m = 0; m < N; ++m){
-            H(k,m) = static_cast <float> (rand()) / static_cast <float> (RAND_MAX) + epsilon;
+    
+    if (!H_fix){
+        for (int k = 0; k < K; ++k){
+            for (int m = 0; m < N; ++m){
+                H(k,m) = static_cast <float> (rand()) / static_cast <float> (RAND_MAX) + epsilon;
+            }
         }
     }
 }
