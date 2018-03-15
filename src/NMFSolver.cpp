@@ -77,29 +77,33 @@ void NMFSolver::solve(){
     else if(gradient_method == 1){last_cost = lossFunctionL1();}
     else if(gradient_method == 2){last_cost = lossFunctionL2();}
     else if(gradient_method == 3){last_cost = lossFunctionL21();}
+    else if(gradient_method == 21){last_cost =lossFunctionL2();}
 
     double current_cost = last_cost;
     chrono.Start();
-    if (verbose){   printf("%f \t cost\n",current_cost); }
+    if (verbose){   printf("%e \t cost\n",current_cost); }
     
 
     for (iter_solving = 0; iter_solving < number_of_iteration_step; ++iter_solving) {
 
         if(gradient_method == 0) {       gradientUpdate();}
         else if(gradient_method ==1){    gradientUpdateL1();}
-        else if(gradient_method ==2){    gradientUpdateL2();}
+        else if(gradient_method ==2){    gradientUpdateL2CD();}
         else if(gradient_method ==3){    gradientUpdateL21();}
+        else if(gradient_method ==21){   gradientUpdateL2();}
     
         reconstruction();
         if(gradient_method == 0){ current_cost = lossFunction(); }
         else if(gradient_method == 1){current_cost = lossFunctionL1();}
         else if(gradient_method == 2){current_cost = lossFunctionL2();}
         else if(gradient_method == 3){current_cost = lossFunctionL21();}
-        if (verbose){   printf("%f \t cost\n",current_cost); }
+        else if(gradient_method == 21){current_cost =lossFunctionL2();}
+
+        if (verbose){   printf("%e \t cost\n",current_cost); }
         chrono.Stop();
         if( current_cost > last_cost
             || abs(last_cost - current_cost) < convergence_stop
-            || chrono.ellapsed_second() > time_out_in_second){
+            || chrono.ellapsed_second() >= time_out_in_second){
             break;
         }
         
@@ -147,9 +151,70 @@ void NMFSolver::gradientUpdate(){
 }
 
 
-void NMFSolver::gradientUpdateL2(){
-    printf("Not Yet Implemented\n");
+void NMFSolver::gradientUpdateL2CD(){
+    mat H_save = H;
+    mat W_save = W;
+
+    double last_cost = lossFunctionL2();
+    double new_cost;
+    
+    if (!H_fix){
+        mat gradient_H = W.t() * (R-A) + sparsity_coefficient;
+        alpha /= beta;
+        do{
+            alpha *= beta;
+            H = H_save;
+            H = H - alpha * gradient_H;
+            H.transform( [](double val) { return (val < 0)? 0 : val; } );
+            reconstruction();
+            new_cost = lossFunctionL2();
+        } while(new_cost > last_cost);
+    }
+    
+    if (!W_fix){
+        mat gradient_W = (R-A) * H.t(); 
+        alpha /= beta;
+        do {
+            alpha *= beta;
+            W = W_save;
+            W = W - alpha * gradient_W;
+            W.transform( [](double val) { return (val < 0)? 0 : val; } );
+            reconstruction();
+            new_cost = lossFunctionL2();
+        } while(new_cost > last_cost);
+    }
+    alpha /= beta;
 }
+
+void NMFSolver::gradientUpdateL2(){
+    mat H_save = H;
+    mat W_save = W;
+
+    double last_cost = lossFunctionL2();
+    double new_cost;
+    
+    mat gradient_H = -W.t() * (A-R) + sparsity_coefficient;
+    mat gradient_W = - ((A-R) * H.t()); 
+    alpha /= beta;
+    do{
+        alpha *= beta;
+        if(!H_fix){
+            H = H_save;
+            H = H - alpha * gradient_H;
+            H.transform( [](double val) { return (val < 0)? 0 : val; } );
+        }
+        if(!W_fix){
+            W = W_save;
+            W = W - alpha * gradient_W;
+            W.transform( [](double val) { return (val < 0)? 0 : val; } );
+        }
+        reconstruction();
+        new_cost = lossFunctionL2();
+    } while(new_cost > last_cost);
+    alpha /= beta;
+    printf("%e\n",alpha );
+}
+
 
 
 

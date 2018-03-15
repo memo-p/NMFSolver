@@ -55,6 +55,7 @@ public:
 
 	// main update
 	void gradientUpdate();
+	void gradientUpdateL2CD();
 	void gradientUpdateL2();
 	void gradientUpdateL1();
 	void gradientUpdateL21();
